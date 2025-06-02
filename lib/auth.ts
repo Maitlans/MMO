@@ -61,10 +61,10 @@ export async function registerUser(userData: RegistrationFormData): Promise<{ su
       .from('users')
       .insert([
         {
-          id: authData.user.id, // Use the auth user's ID
+          id: authData.user.id,
           username: userData.username,
           email: userData.email,
-          password: userData.password, // In production, you might want to hash this or not store it at all
+          password: userData.password,
         },
       ])
       .select()
@@ -102,9 +102,28 @@ export async function registerUser(userData: RegistrationFormData): Promise<{ su
 // Login user
 export async function loginUser(loginData: LoginFormData): Promise<{ success: boolean; message: string; user?: User }> {
   try {
-    // Sign in with Supabase Auth
+    // First, get the user's email if they provided a username
+    let email = loginData.usernameOrEmail;
+    
+    // Check if the input is a username rather than an email
+    if (!loginData.usernameOrEmail.includes('@')) {
+      // Query the users table to get the email for this username
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('email')
+        .eq('username', loginData.usernameOrEmail)
+        .single();
+
+      if (userError || !userData) {
+        throw new Error('User not found');
+      }
+
+      email = userData.email;
+    }
+
+    // Sign in with Supabase Auth using the email
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: loginData.usernameOrEmail,
+      email: email,
       password: loginData.password,
     });
 
